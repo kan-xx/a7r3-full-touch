@@ -1,0 +1,36 @@
+# Compiled binaries, firmware blobs, and object files (NEVER commit)
+*.so
+*.elf
+*.ko
+*.o
+*.a
+*.dylib
+*.bin
+*.BIN
+*.cpio
+*.cpio.gz
+
+# Proprietary / personal media (NEVER commit)
+*.ARW
+*.arw
+*.MP4
+*.mp4
+*.JPG
+*.jpg
+*.JPEG
+*.jpeg
+*.wav
+*.WAV
+vgmstream*
+donor-repo/
+
+# Build, cache, and editor directories
+build/
+dist/
+*.egg-info/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.dSYM/
+.DS_Store

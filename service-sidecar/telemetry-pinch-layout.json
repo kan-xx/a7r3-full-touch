@@ -1,0 +1,293 @@
+{
+  "abi": 2,
+  "report_bytes": 4096,
+  "groups": {
+    "pb": {
+      "start": 668,
+      "fields": [
+        "magic",
+        "abi",
+        "initialized",
+        "disabled_close_uncertain",
+        "paused",
+        "held_mask",
+        "gesture_serial",
+        "image_generation",
+        "policy_epoch",
+        "view_epoch",
+        "view_object",
+        "source_sequence",
+        "timer_sequence",
+        "timer_record",
+        "inflight",
+        "last_result",
+        "last_cancel",
+        "image_flags",
+        "image_read_result",
+        "timer_frames",
+        "native_actions",
+        "pauses",
+        "cancels",
+        "view3_base",
+        "reference_kind",
+        "file_size",
+        "view_phase",
+        "dispatch_status",
+        "dispatch_called",
+        "dispatch_returned",
+        "dispatch_uncertain",
+        "tap_suppressed"
+      ]
+    },
+    "retained_capture": {
+      "start": 564,
+      "fields": [
+        "magic",
+        "abi",
+        "attempts",
+        "now_ms",
+        "status",
+        "view",
+        "phase",
+        "held_mask",
+        "native_buttons",
+        "hit",
+        "capture",
+        "capture_vptr",
+        "runtime_id",
+        "owner_view",
+        "mode",
+        "visible_raw",
+        "enabled_slots",
+        "canvas_parent",
+        "canvas_parent_vptr",
+        "child_userdata",
+        "child_callback",
+        "processed_xy",
+        "posted_xy",
+        "point0",
+        "point1",
+        "native_hit_mask_child0child1parent0parent1",
+        "stable_reread",
+        "source_sequence",
+        "packed_power",
+        "cookie",
+        "ws",
+        "view3",
+        "gui_count",
+        "gui_head",
+        "gui_tail",
+        "gui_token"
+      ]
+    },
+    "passive_capture": {
+      "start": 752,
+      "fields": [
+        "magic",
+        "abi",
+        "attempt",
+        "now_ms",
+        "collection_status_and_readmask",
+        "view",
+        "phase",
+        "ws",
+        "native_buttons",
+        "hit",
+        "capture",
+        "vptr",
+        "runtime_id",
+        "owner_view",
+        "mode",
+        "visible",
+        "enabled_slots",
+        "drag30_slots",
+        "drag31_slots",
+        "e9_element",
+        "e9_model",
+        "e9_complete",
+        "legacy_group",
+        "legacy_item",
+        "raw_type",
+        "directory_prefix",
+        "filename_prefix",
+        "packed_power"
+      ]
+    },
+    "canvas_parent": {
+      "start": 732,
+      "fields": [
+        "magic",
+        "parent",
+        "current_mode_low8_default_high24",
+        "visible",
+        "owner",
+        "event590",
+        "event594",
+        "event5a0"
+      ]
+    },
+    "pinch_veto": {
+      "start": 663,
+      "fields": [
+        "magic",
+        "last_unknown_nonTP_id_while_held2_current211",
+        "monotonic_ms",
+        "saturated_count",
+        "last_veto_stage"
+      ]
+    },
+    "pb_gui_fence": {
+      "start": 241,
+      "fields": [
+        "magic",
+        "schema_low8_status_next8_reason_high16",
+        "attempt",
+        "monotonic_ms",
+        "source_sequence",
+        "timer_sequence",
+        "held_mask",
+        "current_view211",
+        "queue_count",
+        "queue_head",
+        "queue_tail",
+        "mouse0_buttons",
+        "global_GUI_token_s32",
+        "MSS_manager",
+        "selected_record"
+      ]
+    },
+    "pb_gui_meta": {
+      "start": 896,
+      "fields": [
+        "MSS_enabled_u8",
+        "manager_vptr",
+        "active_matching_token_mask",
+        "read_mask_low8_A_next8_B"
+      ]
+    },
+    "pb_gui_selected_record": {
+      "start": 1008,
+      "fields": [
+        "vptr",
+        "contactId",
+        "token",
+        "state",
+        "opaque10",
+        "opaque14",
+        "rect_xy_s16",
+        "rect_wh_s16"
+      ]
+    },
+    "image_reference_check": {
+      "start": 904,
+      "fields": [
+        "magic",
+        "result_low8_mismatch6_next8_stable_bit31",
+        "actual_raw_type",
+        "actual_view_phase"
+      ]
+    }
+  },
+  "capture_status": {
+    "0": "OK",
+    "1": "ARGUMENT",
+    "2": "READ",
+    "3": "BUTTONS",
+    "4": "CAPTURE",
+    "5": "CLASS",
+    "6": "OWNER",
+    "7": "MODE",
+    "8": "VISIBLE",
+    "9": "SLOTS",
+    "10": "HIT",
+    "11": "CHANGED",
+    "12": "VIEW",
+    "13": "RESOURCE",
+    "14": "PARENT_CLASS",
+    "15": "PARENT_LINK",
+    "16": "CALLBACK",
+    "17": "PARENT_EVENTS",
+    "18": "PARENT_MODE",
+    "19": "SCOPE"
+  },
+  "retention": "last nonzero211capture attempt survives idle/UP/USB175, no action authority",
+  "passive_no_authority": true,
+  "passive_status_low8": "0 collected; 1 source,2viewread,3viewtype,4mouseread,5headerread,6unknownclass,7ownerread,8slotread",
+  "passive_meta_success_bits8_to11": "legacyCID,type,directoryPrefix,filenamePrefix",
+  "veto_stages": {
+    "1": "READY",
+    "2": "M59",
+    "3": "CAPTURE",
+    "4": "CONDITION2",
+    "5": "AFTER_GETTER",
+    "6": "NO_PLAN",
+    "7": "BLOCKED_BEFORE_ARM",
+    "8": "GUI_QUEUE",
+    "9": "REFERENCE",
+    "10": "GUI_TOKEN_OR_READ_CHANGED"
+  },
+  "pb_wire_abi": 2,
+  "layout_schema": 5,
+  "canvas_parent_variants": {
+    "0x41375043": [
+      "magic",
+      "parent",
+      "current_mode_low8_default_high24",
+      "visible",
+      "owner",
+      "event590",
+      "event594",
+      "event5a0"
+    ],
+    "0x41375052": [
+      "passive_magic",
+      "candidate_parent",
+      "candidate_parent_vptr",
+      "child_userdata",
+      "child_callback",
+      "parent590_or_unread_FFFFFFFF",
+      "parent594_or_unread_FFFFFFFF",
+      "parent5a0_or_unread_FFFFFFFF"
+    ]
+  },
+  "pb_gui_status": {
+    "0": "OK",
+    "1": "QUEUE",
+    "2": "TOKEN",
+    "3": "CHANGED",
+    "4": "READ",
+    "5": "ARGUMENT"
+  },
+  "pb_gui_token_reason": {
+    "0": "NONE",
+    "1": "DISABLED",
+    "2": "MANAGER",
+    "3": "MANAGER_CLASS",
+    "4": "TOKEN_RANGE",
+    "5": "RECORD_CLASS",
+    "6": "RECORD_TOKEN",
+    "7": "RECORD_STATE",
+    "8": "CONTACT_RANGE",
+    "9": "CONTACT_HELD",
+    "10": "AMBIGUOUS",
+    "11": "BUTTONS"
+  },
+  "diagnostic_boundary": "Retained historical snapshots, not atomic current qualification. Parent passive variant is bounded RO candidate without getWidget/nativeHit; it stops overwriting once a nonzero strict native capture observation is retained. Full selected32B includes opaque/rectangle diagnostics; only vptr/CID/token/state values and active token uniqueness interpreted.",
+  "image_reference_check": {
+    "magic": "0x41374936",
+    "mismatch_bits": {
+      "0": "model_vptr",
+      "1": "complete_vptr",
+      "2": "stream_vptr",
+      "3": "view_vptr",
+      "4": "unsupported_raw_type",
+      "5": "view_phase"
+    },
+    "stable_bit": 31,
+    "supported_discrete_raw_types": [
+      5,
+      15
+    ],
+    "boundary": "Same existing two reader copies only; no extra target reads. Retained diagnostics cannot authorize an action."
+  }
+}

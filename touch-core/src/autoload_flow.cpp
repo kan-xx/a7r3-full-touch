@@ -1,0 +1,14 @@
+#include "autoload_flow.h"
+static int identity(const tr_request*q,uint32_t ui){if(q->version!=7||q->op!=1||q->ui_tid!=ui||!q->pid||q->pid==ui||!q->start||!q->inode||q->major!=252||q->minor!=15||q->base&4095||q->mode>07777||q->arg0||q->arg1)return 0;unsigned nz=0;for(unsigned i=0;i<16;i++)nz|=q->nonce[i];if(!nz)return 0;for(unsigned i=0;i<40;i++){char c=q->boot[i];if(i>=36){if(c)return 0;}else if(i==8||i==13||i==18||i==23){if(c!='-')return 0;}else if(!((c>='0'&&c<='9')||(c>='a'&&c<='f')))return 0;}return 1;}
+extern "C" int as_start(const as_ports*p,void*borrowed,uint32_t ui,as_report*r){if(!r)return AS_BAD_ARGUMENT;*r={};r->abi=1;r->bytes=sizeof*r;r->ui_tid=ui;void*independent=nullptr;uint32_t adopted=0;try{if(!p||!borrowed||ui<2||!p->validate_borrowed||!p->fresh||!p->pin||!p->prepare_owned||!p->close_owned||!p->uncertain)return r->result=AS_BAD_ARGUMENT;r->stage=1;if(!p->validate_borrowed(p->context,borrowed,ui))return r->result=AS_BAD_BORROW;r->borrow_valid=1;tr_request q={};r->stage=2;if(!p->fresh(p->context,ui,&q)||!identity(&q,ui))return r->result=AS_FRESH_FAILED;r->fresh=1;r->stage=3;independent=p->pin(p->context,borrowed);if(!independent)return r->result=AS_PIN_FAILED;r->independent_ref=1;r->stage=4;int rc=p->prepare_owned(p->context,independent,&q,&adopted);r->prepare_result=(uint32_t)rc;r->adopted=adopted;
+ if(rc==AS_ACCEPTED&&adopted==1){r->stage=6;return r->result=AS_ACCEPTED;}
+ if(adopted){/* A possibly published callback must retain this reference. */r->result=rc==AS_SAFE_BUSY?AS_INVARIANT:(uint32_t)rc;return r->result;}
+ if(rc==AS_ACCEPTED){p->uncertain(p->context,independent,0);r->adopted=1;return r->result=AS_INVARIANT;}
+ r->close_attempted=1;r->stage=5;if(p->close_owned(p->context,independent)){r->close_uncertain=1;return r->result=AS_CLOSE_UNCERTAIN;}independent=nullptr;r->independent_ref=0;
+ if(rc==AS_SAFE_BUSY){r->retryable=1;return r->result=AS_SAFE_BUSY;}if(rc==AS_ALREADY_ACCEPTED){r->existing_accepted=1;r->stage=6;return r->result=AS_ACCEPTED;}return r->result=(uint32_t)rc;
+ }catch(...){r->stage=7;r->exception_caught=1;r->result=AS_EXCEPTION;/* Retain any uncertain independent ref: never unwind into owner or auto-close
+  a handle that might already protect a published callback. */if(p&&p->uncertain){try{p->uncertain(p->context,independent,adopted);if(independent)r->adopted=1;}catch(...){}}return AS_EXCEPTION;}}
+extern "C" int a7_autostart_impl(void*,uint32_t,as_report*);
+extern "C" void a7_autostart_unexpected(void*,uint32_t);
+extern "C" void a7_autostart_publish(const as_report*);
+extern "C" __attribute__((visibility("default"))) int A7R_Touch_Autostart(void*h,uint32_t ui){as_report report={};int result=AS_EXCEPTION;try{result=a7_autostart_impl(h,ui,&report);}catch(...){try{a7_autostart_unexpected(nullptr,0);}catch(...){}report.abi=1;report.bytes=sizeof report;report.exception_caught=1;report.result=AS_EXCEPTION;}try{a7_autostart_publish(&report);}catch(...){}return result;}

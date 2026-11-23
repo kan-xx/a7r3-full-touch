@@ -1,0 +1,39 @@
+#ifndef TOUCH_OBSERVER_LAYOUT_H
+#define TOUCH_OBSERVER_LAYOUT_H
+#define OL_RT 0x4da10u
+#define OL_RT_CATALOG 0x4ee08u
+#define OL_S 0x47200u
+#define OL_RT_CACHE 0x4fb7cu
+#define OL_TAP 0x4ea10u
+#define OL_REPORT 0x4da10u
+#define OL_RT_VS 0x4ea80u
+#define OL_RT_WS 0x4ea84u
+#define OL_RT_CALLBACK_CELL 0x4ea88u
+#define OL_RT_ORIGINAL 0x4ea8cu
+#define OL_TAP_PHASE 0x4ea48u
+#define OL_TAP_SERIAL 0x4ea4cu
+#define OL_TAP_TIMER_COOKIE 0x4ea50u
+#define OL_TAP_DUE_MS 0x4ea54u
+#define OL_TAP_ATTEMPTS 0x4ea58u
+#define OL_TAP_START_MS 0x4ea5cu
+#define OL_TAP_HELD_MASK 0x4ea60u
+#define OL_TAP_CANDIDATE 0x4ea1cu
+#define OL_CANDIDATE_ORIGIN_X 0x4ea30u
+#define OL_CANDIDATE_ORIGIN_Y 0x4ea32u
+#define OL_CANDIDATE_X 0x4ea34u
+#define OL_CANDIDATE_Y 0x4ea36u
+#define OL_CANDIDATE_CONTACT 0x4ea38u
+#define OL_CANDIDATE_START_TICK 0x4ea3au
+#define OL_CANDIDATE_END_TICK 0x4ea3cu
+#define OL_CANDIDATE_DURATION_MS 0x4ea40u
+#define OL_CANDIDATE_SERIAL 0x4ea44u
+#define OL_CANDIDATE_CONTEXT 0x4ea1cu
+#define OL_REQUEST_PID 0x47270u
+#define OL_REQUEST_START 0x47278u
+#define OL_REQUEST_UI_TID 0x47274u
+#define OL_REQUEST_NONCE 0x47238u
+#define OL_REQUEST_BOOT 0x47248u
+#define OL_CACHE_SEQ 0x4fb7cu
+#define OL_CACHE_WORDS 0x4fb80u
+#define OL_INPUT_HOOK 0x1d4e4u
+#endif

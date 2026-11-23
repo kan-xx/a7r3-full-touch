@@ -1,0 +1,37 @@
+#include "native_catalog.h"
+struct collect {const struct ns_io*p;const struct ns_input*i;struct ns_catalog*c;};
+static int read32(struct collect*x,uint32_t a,uint32_t*v){return a&&!(a&3)&&x->p->read(x->p->context,a,v,4);}
+static int read8(struct collect*x,uint32_t a,uint8_t*v){return a&&x->p->read(x->p->context,a,v,1);}
+static int visible(struct collect*x,uint32_t a){uint32_t seen[17];for(unsigned n=0;a;n++){if(n==17)return 0;for(unsigned j=0;j<n;j++)if(seen[j]==a)return 0;seen[n]=a;uint8_t mode;if(!read8(x,a+0x21,&mode)||mode==1||mode==3||mode>3)return 0;uint32_t parent=0;if(!x->p->parent(x->p->context,a,&parent)||(parent&3))return 0;a=parent;}return 1;}
+static int add(struct collect*x,uint32_t kind,uint32_t index,uint32_t node,uint32_t expected,int button){uint32_t vp=0,id=0,shape=0;if(!read32(x,node,&vp)||vp!=expected||!read32(x,node+0x24,&id)||!read32(x,vp+0x8c,&shape)||shape!=x->i->obj+0x5e2187)return 0;
+ if(!visible(x,node))return 1;if(button){uint8_t events[168];if(!x->p->read(x->p->context,node+0x2a4,events,sizeof events))return 0;for(unsigned i=0;i<21;i++)if(events[8*i+4])return 1;/* native configured action remains in charge */}
+ if(x->c->count==NS_TARGETS)return 0;x->c->targets[x->c->count++]=(struct surface_target){kind,index,node,vp,id,1};return 1;}
+static int menu(struct collect*x){uint32_t view=x->i->view,root=0,rootvp=0,runtime=0,phase=0,layout=0;uint8_t busy=0,mode=0;int32_t tab,page;
+ if(!x->p->get_widget(x->p->context,view,0xa056f604,&root)||!root||!read32(x,root,&rootvp)||rootvp!=x->i->view2+0x8bc9d0||!read32(x,root+0x24,&runtime)||!read8(x,root+0x21,&mode)||mode!=2||!read32(x,view+0x130,&phase)||(phase!=1&&phase!=2)||!read32(x,view+4,&layout)||!read8(x,view+0x194,&busy)||busy||!x->p->read(x->p->context,view+0x134,&tab,4)||!x->p->read(x->p->context,view+0x138,&page,4))return 0;
+ struct surface_identity*s=&x->c->identity;*s=(struct surface_identity){x->i->power,0xaa,view,root,runtime,phase==1?SURFACE_MENU:SURFACE_POPUP,layout,phase,tab,page,0,0,0};
+ uint32_t label=root+0x15e44;
+ if(phase==2){uint32_t popup=root+0xf7c8,vp=0,node=0;uint8_t open=0,first=0;if(!read32(x,popup,&vp)||vp!=x->i->view2+0x8b4cb0||!read8(x,popup+0x630e,&open)||!open||!read8(x,popup+0x630c,&first)||!read32(x,popup+0x6310,&node)||!node)return 0;s->popup=popup;s->popup_node=node;s->first=first;int visible_count=x->p->popup_value(x->p->context,popup,1,0),total=x->p->popup_value(x->p->context,popup,2,0);if(visible_count<1||visible_count>6||first+visible_count>total)return 0;
+  for(int i=0;i<visible_count;i++){int style=x->p->popup_value(x->p->context,popup,3,first+i);if(style<0||style==3||style==4)continue;if(!add(x,TARGET_POPUP_ROW,i,popup+0x1050+i*0x370,x->i->obj+0x11eab90,0))return 0;}
+ }else{
+  int tabs=x->p->count(x->p->context,root,1,0,0);if(tabs<1||tabs>7||tab<1||tab>tabs)return 0;x->c->tab_count=tabs;int pages=x->p->count(x->p->context,root,2,tab,0);if(pages<0||pages>15)return 0;x->c->page_count=pages;
+  for(int i=0;i<tabs;i++)if(!add(x,TARGET_TAB,i,root+0xb80+i*0x220,x->i->obj+0x11ebe08,0)||!add(x,TARGET_TAB,i,root+0x1a60+i*0x220,x->i->obj+0x11ebe08,0))return 0;
+  for(int i=0;i<pages;i++)if(!add(x,TARGET_PAGE,i,root+0x161b4+i*0x220,x->i->obj+0x11ebe08,0))return 0;
+  if(pages&&(!add(x,TARGET_PAGE_PREV,0,root+0x7e5c,x->i->obj+0x11ebe08,0)||!add(x,TARGET_PAGE_NEXT,0,root+0x807c,x->i->obj+0x11ebe08,0)))return 0;
+  int rows=pages?x->p->count(x->p->context,root,3,tab,page):0;if(rows<0||rows>6)return 0;x->c->row_count=rows;
+  for(int i=0;i<rows;i++){uint32_t row=root+0x9298+i*0x10a8,rowvp=0;uint8_t rowmode;if(!read32(x,row,&rowvp)||rowvp!=x->i->view2+0x8c50d0||!read8(x,row+0x21,&rowmode))return 0;if(rowmode==1||rowmode==3)continue;if(!add(x,TARGET_ROW,i,row+0x1c8,x->i->obj+0x11ed7a0,0))return 0;/* MODE2 root excludes native actions */}
+ }
+ return add(x,TARGET_BACK,0,label,x->i->obj+0x11eab90,0);
+}
+static int fn(struct collect*x){static const uint32_t hashes[12][2]={{0xa50e7508,0xa50e7508},{0x267006d,0x267006d},{0x5fbf8bd2,0x5fbf8bd2},{0xbd181737,0xbd181737},{0x2fac4774,0x2fac4774},{0x8d04d2d9,0x8d04d2d9},{0xea5d5e3e,0xea5d5e3e},{0x47b5e9a3,0x47b5e9a3},{0xba4a19e0,0xba4a19e0},{0x17a2a545,0x17a2a545},{0xb8b7006d,0xb8b7006d},{0x441c006d,0x441c006d}};uint32_t view=x->i->view,layout=0,phase=0,variant=0;uint8_t busy=0,inhibit=0;if(!x->i->view4||!read32(x,view+4,&layout)||layout!=2||!read32(x,view+0x360,&phase)||phase!=1||!read32(x,view+0x12c,&variant)||variant>1||!read8(x,view+0x37c,&busy)||busy||!read8(x,view+0x201,&inhibit)||inhibit)return 0;
+ for(unsigned i=0;i<12;i++){uint32_t cell=0,vp=0,id=0;int32_t function;if(!x->p->get_widget(x->p->context,view,hashes[i][variant],&cell)||!cell||!read32(x,cell,&vp)||vp!=x->i->view2+0x8bc618||!read32(x,cell+0x24,&id)||!x->p->read(x->p->context,view+0x298+8*i,&function,4))return 0;if(i==0)x->c->identity=(struct surface_identity){x->i->power,0x44,view,cell,id,SURFACE_FN,2,1,0,0,0,0,variant};if(function==-0xe1)continue;if(!add(x,TARGET_FN_CELL,i,cell+0x1c0,x->i->obj+0x11ed7a0,1))return 0;}return 1;
+}
+int ns_collect(const struct ns_io*p,const struct ns_input*i,struct ns_catalog*out){if(!out)return 0;for(unsigned n=0;n<sizeof*out;n++)((uint8_t*)out)[n]=0;out->status=1;if(!p||!i||!p->read||!p->get_widget||!p->parent||!p->count||!p->hit||!p->popup_value||!i->qualified||!i->power||!i->view)return 0;struct collect x={p,i,out};uint32_t vp=0;if(!read32(&x,i->view,&vp))return 0;int ok=i->view_id==0xaa&&vp==i->view2+0x863890?menu(&x):i->view_id==0x44&&vp==i->view4+0x293ff8?fn(&x):0;out->status=ok?0:1;return ok;}
+int ns_hit(void*context,const struct surface_target*t,const struct surface_point*point){struct ns_hit_context*x=context;if(!x||!x->io||!x->catalog||x->catalog->status||!t||!point)return 0;const struct ns_io*p=x->io;if(!p->hit(p->context,t->node,point))return 0;if(t->kind!=TARGET_BACK)return 1;if(!p->local||!p->width||!p->height)return 0;struct surface_point local;float width,height;if(!p->local(p->context,t->node,point,&local)||!p->width(p->context,t->node,&width)||!p->height(p->context,t->node,&height)||width<80||height<=0)return 0;return local.x>=width-80&&local.x<width&&local.y>=0&&local.y<height;}
+int ns_target_current(const struct ns_io*p,const struct ns_input*i,const struct ns_catalog*c,const struct surface_target*t){
+ if(!p||!i||!c||!t||c->status||!i->qualified||!t->flags||i->power!=c->identity.power||i->view!=c->identity.view||i->view_id!=c->identity.view_id)return 0;
+ unsigned matches=0;for(unsigned n=0;n<c->count;n++){const struct surface_target*q=c->targets+n;if(q->kind==t->kind&&q->index==t->index&&q->node==t->node&&q->vptr==t->vptr&&q->runtime_id==t->runtime_id&&q->flags==t->flags)matches++;}if(matches!=1)return 0;
+ struct collect x={p,i,(struct ns_catalog*)c};uint32_t vp=0,id=0,shape=0;if(!read32(&x,t->node,&vp)||vp!=t->vptr||!read32(&x,t->node+0x24,&id)||id!=t->runtime_id||!read32(&x,vp+0x8c,&shape)||shape!=i->obj+0x5e2187||!visible(&x,t->node))return 0;
+ if(t->kind==TARGET_ROW){uint32_t row=c->identity.root+0x9298+t->index*0x10a8;uint8_t mode;if(t->index>=6||t->node!=row+0x1c8||!read32(&x,row,&vp)||vp!=i->view2+0x8c50d0||!read8(&x,row+0x21,&mode)||mode==1||mode==3||mode>3)return 0;}
+ if(t->kind==TARGET_FN_CELL){int32_t function;uint8_t events[168];if(t->index>=12||!p->read(p->context,i->view+0x298+8*t->index,&function,4)||function==-0xe1||!p->read(p->context,t->node+0x2a4,events,sizeof events))return 0;for(unsigned n=0;n<21;n++)if(events[8*n+4])return 0;}
+ return t->kind>=TARGET_ROW&&t->kind<=TARGET_FN_CELL;
+}

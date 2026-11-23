@@ -1,0 +1,40 @@
+#ifndef A7_TOUCH_POWER_LAYOUT_H
+#define A7_TOUCH_POWER_LAYOUT_H
+#define PG_LAYOUT_PLACEHOLDER 0u
+#define PG_BOOTSTRAP 0x42f9cu
+#define PG_GLOBAL_PHASE 0x42f90u
+#define PG_GLOBAL_STOP 0x47260u
+#define PG_GLOBAL_ERROR 0x47264u
+#define PG_GLOBAL_FINAL_REQUESTED 0x47268u
+#define PG_B_ERROR 4u
+#define PG_B_PREPARED 8u
+#define PG_B_OWNER_REQUEST 108u
+#define PG_B_OWNER_ERROR 112u
+#define PG_B_ACT_CLAIM 132u
+#define PG_B_BOOTSTRAP_STATE 664u
+#define PG_B_BG_ERROR 680u
+#define PG_B_BG_READY 684u
+#define PG_REPORT_ABI 1u
+#define PG_REPORT_BYTES 8192u
+#define PG_REPORT_BUILD 0x3110f20eu
+#define PG_W_ABI 0u
+#define PG_W_BYTES 1u
+#define PG_W_BUILD 2u
+#define PG_W_PHASE 3u
+#define PG_W_ERROR 4u
+#define PG_W_READY 8u
+#define PG_W_STOP 14u
+#define PG_W_LO_EVENT 19u
+#define PG_W_LO_GENERATION 20u
+#define PG_W_LO_ERROR 21u
+#define PG_W_ACT_CLAIM 26u
+#define PG_W_WORKER_GENERATION 31u
+#define PG_W_BOOTSTRAP_STATE 38u
+#define PG_W_AUDIO_PHASE 45u
+#define PG_W_AUDIO_CONTROL 48u
+#define PG_W_MENU_PHASE 82u
+#define PG_W_MENU_CONTROL 85u
+#define PG_W_FINAL_REQUESTED 312u
+#define PG_W_BG_ERROR 317u
+#define PG_W_INGRESS_ERROR 319u
+#endif
