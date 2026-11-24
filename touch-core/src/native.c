@@ -21,8 +21,7 @@ static void remember_hash(const char*,const struct np_stat*);
 static int verified_current(unsigned);
 static int verified_mp_current(void);
 #define MP_CORE_PATH "/usr/lib/liba7r_menu_product_v21.so"
-#define MP_FILE_BYTES 70160u
-static const uint8_t mp_file_sha[32]={0xc6,0x75,0x29,0xca,0x3c,0xc2,0xb1,0x5d,0xc1,0x76,0xaf,0x58,0x97,0x5a,0x0c,0x8e,0xc8,0x41,0xc6,0x8a,0x84,0x63,0x59,0xa5,0x56,0x0c,0x0e,0xb7,0xf4,0xa2,0x5a,0xac};
+static int mp_optional_absent;
 static uint32_t as_revoked_request,as_recovery_activation,as_current_power;
 static uint32_t as_claim; /*0 none,1 autostart/data,2 queued-autostart,4 service*/
 static int as_preverified(void);
@@ -67,7 +66,32 @@ static struct bf_identity identity_of(const struct np_stat*a){return(struct bf_i
 static const char*verified_path(unsigned i){return i==0?"/usr/lib/libObj.so":i==1?"/usr/lib/viewUnified2.so":i==2?"/usr/lib/viewUnified4.so":i==3?POWER_CORE_PATH:i==4?MP_CORE_PATH:i==5?VIEW3_PATH:0;}
 static void remember_hash(const char*path,const struct np_stat*stat){for(unsigned i=0;i<6;i++)if(equal(path,verified_path(i))){verified_fw[i]=identity_of(stat);verified_fw_mask|=1u<<i;}}
 static int verified_current(unsigned i){if(i>=6||!(verified_fw_mask&(1u<<i)))return 0;int f=open(verified_path(i),0xa0000);if(f<0)return 0;struct np_stat stat={0};int ok=!syscall(197,f,&stat);struct bf_identity now=identity_of(&stat);if(ok)ok=bf_identity_equal(&now,&verified_fw[i]);if(close(f))ok=0;return ok;}
-static int verified_mp_current(void){return verified_current(4);}
+static int verified_mp_current(void){
+ if(mp_optional_absent){int f=open(MP_CORE_PATH,0xa0000);if(f>=0){close(f);return 0;}return 1;}
+ return verified_current(4);
+}
+static int stat_custom_elf_size(const char*path,uint32_t*out_bytes){
+ int f=open(path,0xa0000);if(f<0)return 0;struct np_stat a,b;
+ int ok=!syscall(197,f,&a)&&a.dev==0xfc0f&&!a.uid&&!a.gid&&a.nlink==1&&a.mode==(0100000|0555)&&a.size>=52&&a.size<=1048576&&!syscall(197,f,&b)&&bf_identity_equal(&(struct bf_identity){a.dev,a.ino,a.size,a.mode,a.nlink,a.uid,a.gid,a.mtime,a.mtimens,a.ctime,a.ctimens},&(struct bf_identity){b.dev,b.ino,b.size,b.mode,b.nlink,b.uid,b.gid,b.mtime,b.mtimens,b.ctime,b.ctimens});
+ if(close(f))ok=0;if(ok&&out_bytes)*out_bytes=(uint32_t)a.size;return ok;
+}
+static int hash_custom_elf(const char*path,int optional){
+ static const uint8_t elf_arm32[7]={0x7f,'E','L','F',1,1,1};
+ int f=open(path,0x88000);
+ if(f<0){if(!optional)return 0;mp_optional_absent=1;verified_fw_mask&=~16u;return 1;}
+ if(optional)mp_optional_absent=0;
+ struct np_stat a,b;uint8_t data[4096],hdr[52]={0};
+ int good=!syscall(197,f,&a)&&a.dev==0xfc0f&&!a.uid&&!a.gid&&a.nlink==1&&(a.mode&0177777)==(0100000|0555)&&a.size>=52&&a.size<=1048576;
+ unsigned total=0;
+ for(unsigned i=0;good&&i<512;i++){
+  int n=read(f,data,sizeof data);if(n<0){good=0;break;}if(!n)break;
+  for(unsigned k=0;k<(unsigned)n&&total+k<52u;k++)hdr[total+k]=data[k];
+  total+=(unsigned)n;if(total>(unsigned)a.size){good=0;break;}
+ }
+ unsigned e_type=hdr[16]|((unsigned)hdr[17]<<8),e_machine=hdr[18]|((unsigned)hdr[19]<<8);
+ if(total!=(unsigned)a.size||!same(hdr,elf_arm32,7)||e_type!=3u||e_machine!=40u||syscall(197,f,&b)||!bf_identity_equal(&(struct bf_identity){a.dev,a.ino,a.size,a.mode,a.nlink,a.uid,a.gid,a.mtime,a.mtimens,a.ctime,a.ctimens},&(struct bf_identity){b.dev,b.ino,b.size,b.mode,b.nlink,b.uid,b.gid,b.mtime,b.mtimens,b.ctime,b.ctimens}))good=0;
+ if(close(f))good=0;if(good)remember_hash(path,&b);return good;
+}
 static int view3_profile(const struct bf_identity*a){return a->dev==0xfc0f&&a->size==VIEW3_FILE_BYTES&&a->mode==(0100000|VIEW3_FILE_MODE)&&a->nlink==1&&a->uid==VIEW3_FILE_UID&&a->gid==VIEW3_FILE_GID;}
 static int verified_view3_current(void){return view3_profile(&verified_fw[5])&&verified_current(5);}
 static uint32_t resolve_slot(const struct class_slot_def*d,uint32_t obj,uint32_t view){if(d->symbol[0])return (uintptr_t)dlsym(0,d->symbol)+d->offset;if(d->module==1)return obj+d->offset;if(d->module==2)return view+d->offset;return 0;}
@@ -130,7 +154,7 @@ void tr_observed_impl(void*record,struct ts*due,void*data,uint32_t native_lr){
 void tr_observed_failed(void*record,struct ts*due,void*data,uint32_t lr){(void)due;if(data!=&s||record!=s.record||lr!=s.expected_return)return;rt.gate=0;rt_pb_revoke(PB_CANCEL_THROW);input_tap_cancel(&rt.tap);s.r.last_error=180;if(s.auto_install)as_ui_fail(&s.auto_ui,180);s.r.phase=2;s.record=0;s.remove(head(),record);RW(7)=RW(55)=180;rt_publish();}
 static int cleanup(void){if(!rt_pb_cleanup()){s.r.close_uncertain|=64;return 0;}if(!rt_ffc_cleanup())s.r.close_uncertain|=16;if(rt_view4_ref){void*p=rt_view4_ref;if(dlclose(p))s.r.close_uncertain|=8;else rt_view4_ref=0;}if(rt.power_ref){void*p=rt.power_ref;if(dlclose(p))s.r.close_uncertain|=4;else rt.power_ref=0;}if(s.fd>=0){int f=s.fd;s.fd=-1;if(close(f))s.r.close_uncertain|=1;}if(s.view){void*v=s.view;if(dlclose(v))s.r.close_uncertain|=2;else s.view=0;}return !s.r.close_uncertain;}
 static int bind(void){
- s.r.bind_stage=1;if(!epoch())return 0;if(!as_preverified()&&(!file_identity()||!hash_file("/usr/lib/viewUnified2.so",VIEW2_SIZE,view2_sha)||!hash_file("/usr/lib/libObj.so",RUNTIME_OBJ_FILE_SIZE,runtime_obj_sha)||!hash_file(POWER_CORE_PATH,POWER_FILE_SIZE,power_file_sha)||!hash_file(MP_CORE_PATH,MP_FILE_BYTES,mp_file_sha)||!hash_file(VIEW3_PATH,VIEW3_FILE_BYTES,view3_file_sha)||!verified_view3_current()))return 0;s.r.identity_valid=1;
+ s.r.bind_stage=1;if(!epoch())return 0;if(!as_preverified()&&(!file_identity()||!hash_file("/usr/lib/viewUnified2.so",VIEW2_SIZE,view2_sha)||!hash_file("/usr/lib/libObj.so",RUNTIME_OBJ_FILE_SIZE,runtime_obj_sha)||!hash_custom_elf(POWER_CORE_PATH,0)||!hash_custom_elf(MP_CORE_PATH,1)||!hash_file(VIEW3_PATH,VIEW3_FILE_BYTES,view3_file_sha)||!verified_view3_current()))return 0;s.r.identity_valid=1;
  /* Independent of view4's mapping: NOLOAD only the currently resident view2. */
  s.view=dlopen("/usr/lib/viewUnified2.so",6);if(!s.view)return 0;void*f=dlsym(s.view,"ViewSettingMenuToInstance");struct info v={0};
  if(!f||!dladdr(f,&v)||!v.base||(uintptr_t)f!=(uintptr_t)v.base+0x20c349||(!equal(v.file,"/usr/lib/viewUnified2.so")&&!equal(v.file,"//usr/lib/viewUnified2.so"))||!same((void*)((uintptr_t)f&~1u),view2_factory_anchor,16))return 0;

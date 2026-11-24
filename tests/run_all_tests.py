@@ -130,8 +130,8 @@ def run_host_c_suites() -> None:
         print(out_menu, end="")
         assert "passed" in out_menu
 
-        # Suite 4: 128B A7TBM001 boot_manifest + STREAM_FILE88B {5, 15} JPEG/RAW lease
-        print("\n=== [4/4] Building & running ASan/UBSan A7TBM001 manifest & {5, 15} JPEG/RAW lease suite ===")
+        # Suite 4: 128B A7TBM001 boot_manifest + dynamic ELF hash + power_gate + {5, 15} JPEG/RAW lease
+        print("\n=== [4/4] Building & running ASan/UBSan A7TBM001 manifest, dynamic ELF/power_gate & {5, 15} lease suite ===")
         lease_bin = tmp / "test_boot_manifest_and_lease"
         _run(
             [
@@ -142,6 +142,8 @@ def run_host_c_suites() -> None:
                 f"-I{CORE_SRC}",
                 str(TESTS_DIR / "test_boot_manifest_and_lease.c"),
                 str(CORE_SRC / "boot_manifest.c"),
+                str(CORE_SRC / "bounded_file_hash.c"),
+                str(CORE_SRC / "power_gate.c"),
                 str(CORE_SRC / "image_lease.c"),
                 str(CORE_SRC / "image_reference_read.c"),
                 "-o",

@@ -15,8 +15,7 @@ static const uint8_t runtime_obj_sha[]={148,206,110,196,124,43,57,74,161,164,247
 #define POWER_CORE_PATH "/usr/lib/liba7r_startup_full_v14.so"
 #define POWER_CORE_PATH_DOUBLE "//usr/lib/liba7r_startup_full_v14.so"
 #define POWER_REPORT_SYMBOL "A7R_Lifecycle_Report"
-#define POWER_REPORT_OFFSET 0x1331cu
-#define POWER_FILE_SIZE 79028u
+#define POWER_LIVE_SYMBOL "A7R_Lifecycle_LiveState"
 #define POWER_BOOTSTRAP PG_BOOTSTRAP
 #define POWER_PHASE PG_GLOBAL_PHASE
 #define POWER_STOP PG_GLOBAL_STOP
@@ -24,6 +23,4 @@ static const uint8_t runtime_obj_sha[]={148,206,110,196,124,43,57,74,161,164,247
 #define POWER_FINAL PG_GLOBAL_FINAL_REQUESTED
 static const uint32_t power_alloc_ranges[][2]={{0x0,0x1fa4},{0x11fa4,0x22790},{0x32790,0x33000},{0x42ca8,0x70b18}};
 #define POWER_ALLOC_RANGE_COUNT 4u
-static const uint8_t power_file_sha[]={198,142,113,9,96,91,78,20,139,156,85,152,191,97,251,129,21,136,131,19,63,223,49,178,72,221,7,107,212,63,92,187};
-static const uint8_t power_report_anchor[]={1,32,160,225,0,16,160,225,4,0,159,229,0,0,143,224};
 #endif

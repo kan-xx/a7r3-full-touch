@@ -6,8 +6,69 @@
 #include <string.h>
 
 #include "boot_manifest.h"
+#include "bounded_file_hash.h"
+#include "power_gate.h"
+#include "power_layout.h"
 #include "image_lease.h"
 #include "image_reference_read.h"
+
+struct fake_bf_fs {
+    uint8_t elf[256];
+    uint32_t size;
+    uint32_t pos;
+    int open_fd;
+};
+
+static int fake_bf_open(void *ctx, const char *path) {
+    struct fake_bf_fs *fs = ctx;
+    (void)path;
+    if (fs->open_fd >= 0) return -1;
+    fs->pos = 0;
+    fs->open_fd = 7;
+    return 7;
+}
+
+static int fake_bf_stat(void *ctx, int fd, struct bf_identity *out) {
+    struct fake_bf_fs *fs = ctx;
+    if (fd != 7) return -1;
+    *out = (struct bf_identity){0xfc0fu, 1001u, fs->size, 0100555u, 1u, 0u, 0u, 10u, 0u, 10u, 0u};
+    return 0;
+}
+
+static int fake_bf_read(void *ctx, int fd, void *out, uint32_t n) {
+    struct fake_bf_fs *fs = ctx;
+    if (fd != 7) return -1;
+    uint32_t left = fs->size - fs->pos;
+    uint32_t take = left < n ? left : n;
+    if (take) memcpy(out, fs->elf + fs->pos, take);
+    fs->pos += take;
+    return (int)take;
+}
+
+static int fake_bf_close(void *ctx, int fd) {
+    struct fake_bf_fs *fs = ctx;
+    if (fd != 7) return -1;
+    fs->open_fd = -1;
+    return 0;
+}
+
+struct fake_pg {
+    uint32_t live[12];
+    uint32_t report[2048];
+};
+
+static int fake_pg_live(void *ctx, uint32_t out[12]) {
+    struct fake_pg *pg = ctx;
+    memcpy(out, pg->live, sizeof(pg->live));
+    return 0;
+}
+
+static int fake_pg_report(void *ctx, uint32_t *out, uint32_t bytes) {
+    struct fake_pg *pg = ctx;
+    if (bytes < sizeof(pg->report)) return 1;
+    memcpy(out, pg->report, sizeof(pg->report));
+    return 0;
+}
 
 struct fake_mem {
     uint32_t obj_base;
@@ -253,6 +314,57 @@ int main(void) {
     lease.generation = 0xffffffffu;
     CK(pi_observe(&lease, &key_jpg, flags, &cookie) == PI_EXHAUSTED && lease.exhausted && !lease.valid);
     CK(pi_observe(&lease, &key_jpg, flags, &cookie) == PI_EXHAUSTED);
+
+    /* Part 3: BF_DYNAMIC_ELF accepts arbitrary user-compiled ARM32 ET_DYN ELF & rejects non-ELF */
+    ++cases;
+    struct fake_bf_fs fs;
+    memset(&fs, 0, sizeof(fs));
+    fs.open_fd = -1;
+    fs.size = 128;
+    memcpy(fs.elf, "\x7f""ELF\x01\x01\x01", 7);
+    fs.elf[16] = 3;  /* ET_DYN */
+    fs.elf[18] = 40; /* EM_ARM */
+    struct bf_config cfgs[BF_FILES];
+    for (unsigned i = 0; i < BF_FILES; ++i) {
+        cfgs[i] = (struct bf_config){"/usr/lib/liba7r_menu_product_v21.so", 128, 0555, BF_ROOT_ONLY | BF_DYNAMIC_ELF, {0}};
+    }
+    struct bf_ports bfp = {&fs, fake_bf_open, fake_bf_stat, fake_bf_read, fake_bf_close};
+    struct bf_state bfs;
+    memset(&bfs, 0, sizeof(bfs));
+    CK(bf_init(&bfs) == BF_MORE);
+    CK(bf_step(&bfs, cfgs, &bfp) == BF_MORE && (bfs.verified_mask & 1u) == 1u);
+    CK(bf_cancel(&bfs, &bfp) == BF_DONE);
+
+    fs.elf[0] = 'R'; /* Corrupt ELF magic */
+    memset(&bfs, 0, sizeof(bfs));
+    CK(bf_init(&bfs) == BF_MORE);
+    CK(bf_step(&bfs, cfgs, &bfp) == BF_FAILED);
+
+    /* Part 4: power_gate compiler-independent live_state callback mode */
+    ++cases;
+    struct fake_pg pg;
+    memset(&pg, 0, sizeof(pg));
+    pg.live[0] = (2u << 3) | 5u; /* gen=2, ACT=5 */
+    pg.live[2] = 1;              /* prepared=1 */
+    pg.live[5] = 1;              /* bg_ready=1 */
+    pg.live[6] = 22;             /* global_phase=22 */
+    pg.live[10] = 4;             /* bootstrap_state=4 */
+    pg.live[11] = 2;             /* act_claim=2 */
+    pg.report[PG_W_ABI] = PG_REPORT_ABI;
+    pg.report[PG_W_BYTES] = PG_REPORT_BYTES;
+    pg.report[PG_W_BUILD] = PG_REPORT_BUILD;
+    pg.report[PG_W_PHASE] = 22;
+    pg.report[PG_W_READY] = 1;
+    pg.report[PG_W_LO_EVENT] = 5;
+    pg.report[PG_W_LO_GENERATION] = 2;
+    pg.report[PG_W_WORKER_GENERATION] = 2;
+    pg.report[PG_W_ACT_CLAIM] = 2;
+    struct pg_ports pgp = {&pg, 0, fake_pg_report, fake_pg_live};
+    struct pg_proof proof;
+    CK(pg_check(&pgp, &proof) == 1 && proof.generation == 2);
+    pg.live[0] = (2u << 3) | 2u; /* INACT=2 */
+    uint32_t rev = 0;
+    CK(pg_revoked(&pgp, &rev) == 1 && rev == pg.live[0]);
 
     printf("test_boot_manifest_and_lease cases=%u checks=%u passed\n", cases, checks);
 #undef CK

@@ -5,29 +5,30 @@
  * sliced AS bf ticks, followed by the existing small inode/stat ticket check. */
 #define RT_FFC_PATH "/usr/lib/liba7r_menu_product_v21.so"
 #define RT_FFC_PATH_DOUBLE "//usr/lib/liba7r_menu_product_v21.so"
-#define RT_FFC_BYTES 70160u
-#define RT_FFC_SHA_HEX "c67529ca3cc2b15dc176af58975a0c8ec841c68a846359a5560c0eb7f4a25aac"
-static const uint8_t rt_ffc_sha[32]={0xc6,0x75,0x29,0xca,0x3c,0xc2,0xb1,0x5d,0xc1,0x76,0xaf,0x58,0x97,0x5a,0x0c,0x8e,0xc8,0x41,0xc6,0x8a,0x84,0x63,0x59,0xa5,0x56,0x0c,0x0e,0xb7,0xf4,0xa2,0x5a,0xac};
 static struct ffc_runtime_bridge rt_ffc;
 static void*rt_ffc_ref;static uint32_t rt_ffc_base,rt_ffc_api,rt_ffc_query;
 static struct a7_menu_snapshot rt_ffc_snapshot;
 static int verified_mp_current(void);
 static int rt_ffc_bind(void){
+ if(mp_optional_absent)return 0;
  if(rt_ffc_ref)return verified_mp_current();
  if(!verified_mp_current())return 0;
  void*h=dlopen(RT_FFC_PATH,6);if(!h)return 0;
- void*f=dlsym(h,"a7r_menu_product_v21");struct info d={0};uint32_t api[9];
- static const uint8_t getter[16]={0x04,0x00,0x9f,0xe5,0x00,0x00,0x8f,0xe0,0x1e,0xff,0x2f,0xe1,0xdc,0xe0,0x01,0x00};
- static const uint8_t query[16]={0x30,0x48,0x2d,0xe9,0x60,0x50,0x9f,0xe5,0x00,0x40,0xa0,0xe1,0x00,0x03,0x07,0xe3};
+ void*f=dlsym(h,"a7r_menu_product_v21");struct info d={0},da={0},dq={0};uint32_t api[9];
  static const uint8_t raw[16]={0x2d,0xe9,0xf0,0x4f,0x83,0xb0,0x04,0x46,0x00,0xaf,0x08,0x46,0x89,0x46,0xcc,0xf4};
- uint32_t b=0;int ok=f&&dladdr(f,&d)&&d.base&&(b=(uintptr_t)d.base)&&
+ uint32_t b=0,actual=0;
+ int ok=f&&dladdr(f,&d)&&d.base&&(b=(uintptr_t)d.base)&&
   (equal(d.file,RT_FFC_PATH)||equal(d.file,RT_FFC_PATH_DOUBLE))&&
-  (uintptr_t)f==b+0x128e8&&same(f,getter,16)&&same((void*)(uintptr_t)(b+0x143dc),query,16)&&
-  same((void*)(uintptr_t)(s.r.obj_base+0x8305bc),raw,16)&&
-  rt_read(b+0x309d0,api,sizeof api)&&api[0]==1&&api[1]==36&&api[2]==0x3110d015&&api[4]==b+0x143dc;
- if(ok){uint32_t actual=(uintptr_t)((const void*(*)(void))f)();ok=actual==b+0x309d0&&verified_mp_current();}
+  same((void*)(uintptr_t)(s.r.obj_base+0x8305bc),raw,16);
+ if(ok){
+  const void*aptr=((const void*(*)(void))f)();
+  actual=(uintptr_t)aptr;
+  ok=aptr&&dladdr(aptr,&da)&&da.base==d.base&&
+     rt_read(actual,api,sizeof api)&&api[0]==1&&api[1]==36&&api[2]==0x3110d015&&
+     api[4]&&dladdr((const void*)(uintptr_t)api[4],&dq)&&dq.base==d.base&&verified_mp_current();
+ }
  if(!ok){if(dlclose(h))rt.uncertain=1;return 0;}
- rt_ffc_ref=h;rt_ffc_base=b;rt_ffc_api=b+0x309d0;rt_ffc_query=api[4];return 1;
+ rt_ffc_ref=h;rt_ffc_base=b;rt_ffc_api=actual;rt_ffc_query=api[4];return 1;
 }
 /* Read-only scope for projection, including stock's legitimate pressed queue.
  * Only the final strict projection/raw boundary requires drain/buttons zero. */

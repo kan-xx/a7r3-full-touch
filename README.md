@@ -137,23 +137,22 @@ make test
 安装 [Zig](https://ziglang.org/)（提供零配置 `arm-linux-gnueabi` 交叉编译链）后，通过 `A7R3_FW_ROOT` 指向自行提取的 α7R III `3.10` 固件根目录：
 
 ```bash
-# 编译 liba7r_touch_full_runtime_v7.so (161,576 B) 与 libproF9.so (7,188 B)
+# 编译 liba7r_touch_full_runtime_v7.so 与 libproF9.so
 make build-core A7R3_FW_ROOT=/path/to/extracted-a7r3-fw-3.10
 
-# 可选：同时封印 128 字节冷启动清单 a7r_touch_boot_v1.bin (A7TBM001)
+# 可选：同时根据自编译的启动宿主 .so 自动计算摘要并封印 128B 清单 a7r_touch_boot_v1.bin (A7TBM001)
 python3 touch-core/build_core.py \
   --fw-root /path/to/extracted-a7r3-fw-3.10 \
-  --owner-sha256 <64-hex-autoload-owner-sha256> \
-  --install-nonce <32-hex-install-nonce> \
+  --owner-so /path/to/liba7r_startup_full_v14.so \
   --out-dir build
 
 # 编译只读诊断观察器
 make build-observers A7R3_FW_ROOT=/path/to/extracted-a7r3-fw-3.10
 ```
 
-在标准 Zig `0.15.x` 与 FW `3.10` sysroot 下，`touch-core/build_core.py` 从仓库内部源码直接复现与实机验收完全一致的确定性产物：
-- `liba7r_touch_full_runtime_v7.so`：`161,576` 字节，SHA-256 `27db98355ef6cbadd22e619c2d294a40407a2bf59cf320d8d48882680ea64a45`
-- `libproF9.so`：`7,188` 字节，SHA-256 `10b41c23dad317f90dd855698bef14777438b31692be0f633f6e73e2abe55fe7`
+`touch-core/build_core.py` 从仓库内部源码直接生成目标产物，且与外部组件保持编译器无关的动态绑定：
+- 启动宿主（`liba7r_startup_full_v14.so`）通过 `a7r_touch_boot_v1.bin` 清单摘要与导出符号 `A7R_Lifecycle_Report` / `A7R_Lifecycle_LiveState` 校验，不锁死固定编译哈希或 `.bss` 偏移；
+- 原生自定义菜单（`liba7r_menu_product_v21.so`）支持独立可选运行：未安装菜单模块时主菜单、`Fn`、二级参数条与回放双指缩放照常生效；安装自编译菜单模块时通过 ELF 头与 `dladdr` 模块归属自动启用 `View 0xFFC` 触控。
 
 ### 3. 运行 Unicorn ARM32 原厂固件验证器（可选）
 

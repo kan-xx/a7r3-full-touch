@@ -20,7 +20,7 @@ static void rt_ffc_reset(void);
 #include "center_event.h"
 extern int pthread_mutex_lock(void*);
 static uint32_t rt_cmd_arg,rt_inflight,rt_bad_source,rt_leases_gate;
-static struct {struct tr_runtime report;InputTapState tap;void*timer;uint32_t cookie,release_cookie,release_ms,active,gate,uncertain,vs,ws,callback_cell,original,epoch_tag;uint32_t focus_view,focus_root,focus_page,focus_generation;void*power_ref;uint32_t power_base;} rt;
+static struct {struct tr_runtime report;InputTapState tap;void*timer;uint32_t cookie,release_cookie,release_ms,active,gate,uncertain,vs,ws,callback_cell,original,epoch_tag;uint32_t focus_view,focus_root,focus_page,focus_generation;void*power_ref;uint32_t power_base;int(*power_report_fn)(uint32_t*,unsigned);int(*power_live_fn)(uint32_t[12]);} rt;
 static struct ns_catalog rt_catalog;static struct envelope_pending rt_pending;static struct surface_identity rt_action_surface;static struct surface_target rt_action_target;static uint32_t rt_action_serial,rt_surface_generation,rt_sequence,rt_view4_base;static void*rt_view4_ref;static struct nmp_policy rt_policy[3];static uint32_t rt_policy_epoch,rt_policy_top,rt_policy_view,rt_policy_power;
 static struct tr_report rt_scratch;static struct rc_cache rt_cache;
 #define RW(i) rt.report.word[i]
@@ -31,11 +31,12 @@ static int rt_cached(struct tr_runtime*out){if(!rc_read(&rt_cache,out->word))ret
 static int rt_read(uint32_t a,void*out,uint32_t n){return snapshot_read(0,a,out,n);}
 static uint32_t rt_now(void){struct ts t={0};if(s.now(&t)||t.sec<0||t.nsec<0||t.nsec>=1000000000)return 0;return(uint32_t)t.sec*1000+(uint32_t)t.nsec/1000000;}
 #include "runtime_cache.inc"
-/* This exact SHA/Report anchor and private layout come from a section-by-
- * section identity proof of the ACCEPTED v14 owner, not guessed offsets. */
+/* Supports exported A7R_Lifecycle_LiveState and A7R_Lifecycle_Report via dladdr
+ * module ownership, with fallback to historical v14 offsets if LiveState absent. */
 static int rt_power_read(void*x,uint32_t offset,uint32_t*out){(void)x;uint32_t a=rt.power_base+offset;if(!rt.power_base||!a7_menu_maps_contains(&snapshot_maps,a,4))return 0;*out=__atomic_load_n((uint32_t*)(uintptr_t)a,__ATOMIC_ACQUIRE);return 1;}
-static int rt_power_report(void*x,uint32_t*out,uint32_t bytes){(void)x;return((int(*)(uint32_t*,unsigned))(uintptr_t)(rt.power_base+POWER_REPORT_OFFSET))(out,bytes);}
-static int rt_power(void){uint32_t began=rt_perf_clock();struct pg_ports p={0,rt_power_read,rt_power_report};struct pg_proof proof;int ok=pg_check(&p,&proof);RW(60)=proof.request;RW(61)=proof.state;RW(62)=proof.status;RW(63)=proof.audio_phase|(proof.menu_phase<<8);rt_perf_end(RP_POWER,began);return ok;}
+static int rt_power_report(void*x,uint32_t*out,uint32_t bytes){(void)x;return rt.power_report_fn?rt.power_report_fn(out,bytes):1;}
+static int rt_power_live(void*x,uint32_t out[12]){(void)x;return rt.power_live_fn?rt.power_live_fn(out):1;}
+static int rt_power(void){uint32_t began=rt_perf_clock();struct pg_ports p={0,rt_power_read,rt_power_report,rt.power_live_fn?rt_power_live:0};struct pg_proof proof;int ok=pg_check(&p,&proof);RW(60)=proof.request;RW(61)=proof.state;RW(62)=proof.status;RW(63)=proof.audio_phase|(proof.menu_phase<<8);rt_perf_end(RP_POWER,began);return ok;}
 /* All native ports below are invoked only from the attested original UI owner.
  * getWidget receives the View primary this; IDs and runtime IDs stay distinct. */
 static int rt_view4(void){if(rt_view4_ref)return 1;if(!verified_current(2))return 0;void*h=dlopen("/usr/lib/viewUnified4.so",6);if(!h)return 0;void*f=dlsym(h,"ViewFnMenuToInstance");struct info d={0};int ok=f&&dladdr(f,&d)&&d.base&&(uintptr_t)f==(uintptr_t)d.base+0x18b7e1&&(equal(d.file,"/usr/lib/viewUnified4.so")||equal(d.file,"//usr/lib/viewUnified4.so"));if(ok)for(unsigned i=0;i<RUNTIME_VIEW4_ANCHOR_COUNT;i++)if(!same((void*)((uintptr_t)d.base+runtime_view4_offsets[i]),runtime_view4_bytes[i],16)){ok=0;break;}if(!ok){if(dlclose(h))rt.uncertain=1;return 0;}rt_view4_ref=h;rt_view4_base=(uintptr_t)d.base;return 1;}
@@ -156,8 +157,14 @@ void rt_hook_finish(struct rt_frame*f){if(f->source_ok){rt_count_stock(f);rt_pb_
 
 static int rt_bind_ui(void){if(inspect_to(&s.r,0xaa,0,s.inspect_attempts))return 82;if(!refresh())return 83;uint32_t vm=0,vs=0,ws=0,globalws=0,cb=0;if(!rt_read(s.view_global,&vm,4)||!vm||!rt_read(vm+0x14,&vs,4)||!vs||!rt_read(vs+8,&ws,4)||!ws||!rt_read(s.r.obj_base+0x129f470,&globalws,4)||ws!=globalws||!rt_read(vs+0x14,&cb,4)||cb!=s.r.obj_base+0x3c0101||!a7_menu_maps_writable(&snapshot_maps,vs+0x14,4))return 84;
  for(unsigned i=0;i<RUNTIME_OBJ_ANCHOR_COUNT;i++)if(!same((void*)(uintptr_t)(s.r.obj_base+runtime_obj_offsets[i]),runtime_obj_bytes[i],16))return 85;for(unsigned i=0;i<RUNTIME_VIEW_ANCHOR_COUNT;i++)if(!same((void*)(uintptr_t)(s.r.lib_base+runtime_view_offsets[i]),runtime_view_bytes[i],16))return 86;
- if(!verified_current(3))return 87;if(!rt.power_ref)rt.power_ref=dlopen(POWER_CORE_PATH,6);if(!rt.power_ref)return 88;void*p=dlsym(rt.power_ref,POWER_REPORT_SYMBOL);struct info d={0};if(!p||!dladdr(p,&d)||!d.base||(uintptr_t)p!=(uintptr_t)d.base+POWER_REPORT_OFFSET||(!equal(d.file,POWER_CORE_PATH)&&!equal(d.file,POWER_CORE_PATH_DOUBLE))||!same((void*)((uintptr_t)p&~1u),power_report_anchor,16))return 89;
- rt.power_base=(uintptr_t)d.base;rt.vs=vs;rt.ws=ws;rt.callback_cell=vs+0x14;rt.original=cb;rt.epoch_tag=word32(s.q.nonce)^word32(s.q.nonce+4)^word32(s.q.nonce+8)^word32(s.q.nonce+12);if(!rt.epoch_tag)rt.epoch_tag=1;InputTapConfig cfg=input_tap_default_config();if(!input_tap_init(&rt.tap,&cfg))return 90;if(!rt_ffc_bind())return 207;rt_pb_init();RW(2)=1;rt_publish();return 0;}
+ if(!verified_current(3))return 87;if(!rt.power_ref)rt.power_ref=dlopen(POWER_CORE_PATH,6);if(!rt.power_ref)return 88;
+ void*p=dlsym(rt.power_ref,POWER_REPORT_SYMBOL);void*lv=dlsym(rt.power_ref,POWER_LIVE_SYMBOL);struct info d={0},dl={0};
+ if(!p||!dladdr(p,&d)||!d.base||(!equal(d.file,POWER_CORE_PATH)&&!equal(d.file,POWER_CORE_PATH_DOUBLE))||(lv&&(!dladdr(lv,&dl)||dl.base!=d.base)))return 89;
+ rt.power_base=(uintptr_t)d.base;rt.power_report_fn=(int(*)(uint32_t*,unsigned))p;rt.power_live_fn=(int(*)(uint32_t[12]))lv;
+ rt.vs=vs;rt.ws=ws;rt.callback_cell=vs+0x14;rt.original=cb;rt.epoch_tag=word32(s.q.nonce)^word32(s.q.nonce+4)^word32(s.q.nonce+8)^word32(s.q.nonce+12);if(!rt.epoch_tag)rt.epoch_tag=1;
+ InputTapConfig cfg=input_tap_default_config();if(!input_tap_init(&rt.tap,&cfg))return 90;
+ if(!mp_optional_absent){void*mh=dlopen(RT_FFC_PATH,6);if(mh){if(dlclose(mh))return 207;if(!rt_ffc_bind())return 207;}}
+ rt_pb_init();RW(2)=1;rt_publish();return 0;}
 static int32_t rt_get_disp(void*x){(void)x;return((int32_t(*)(void))(uintptr_t)(s.r.lib_base+0x2bed81))();}static int32_t rt_get_range(void*x){(void)x;return((int32_t(*)(void))(uintptr_t)(s.r.lib_base+0x2bedd5))();}static int32_t rt_device(void*x,uint32_t v){(void)x;return((int32_t(*)(void*))(uintptr_t)(s.r.lib_base+0x29c407))((void*)(uintptr_t)v);}static uint32_t rt_lookup(void*x,uint32_t mm,uint32_t id){(void)x;return(uintptr_t)((void*(*)(void*,uint32_t))(uintptr_t)(s.r.obj_base+0x834ff7))((void*)(uintptr_t)mm,id);}
 static void rt_diagnostic(uint32_t view){struct touch_diag_ports p={0,s.r.obj_base,s.view_global,1,snapshot_read,rt_get_disp,rt_get_range,rt_device,rt_lookup};struct touch_diag d;if(touch_diag_read(&p,view,&d))__builtin_memcpy(&RW(600),&d,sizeof d);}
 static int rt_snapshot_ui(void){InputTapContext c;int good=rt_current(&c,0);rt_diagnostic(good?c.view:0);rt_publish();return good?0:91;}

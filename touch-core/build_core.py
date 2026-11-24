@@ -34,10 +34,7 @@ TBM_BYTES = 128
 TBM_BUILD = 0x3111FE07
 TBM_ENTRY_API = 1
 
-EXPECTED_V17_CORE_SHA256 = "27db98355ef6cbadd22e619c2d294a40407a2bf59cf320d8d48882680ea64a45"
-EXPECTED_F9_SIDECAR_SHA256 = "10b41c23dad317f90dd855698bef14777438b31692be0f633f6e73e2abe55fe7"
-
-# Exact 34 translation units in link order matching canonical V17 build
+# 34 translation units in link order
 CORE_TRANSLATION_UNITS = [
     "native.c",
     "input_hook.cpp",
@@ -193,6 +190,7 @@ def build_all(
     fw_root: Path,
     out_dir: Path,
     zig_bin: str = "zig",
+    owner_so: Path | None = None,
     owner_sha256_hex: str | None = None,
     install_nonce_hex: str | None = None,
 ) -> dict[str, object]:
@@ -265,18 +263,20 @@ def build_all(
         raise RuntimeError(f"Unexpected libproF9.so exports: {f9_meta['exports']}")
 
     result: dict[str, object] = {
-        "core": {
-            **core_meta,
-            "matches_canonical_v17": core_meta["sha256"] == EXPECTED_V17_CORE_SHA256,
-        },
-        "sidecar": {
-            **f9_meta,
-            "matches_canonical_f9": f9_meta["sha256"] == EXPECTED_F9_SIDECAR_SHA256,
-        },
+        "core": core_meta,
+        "sidecar": f9_meta,
     }
 
+    if owner_so is not None and not owner_sha256_hex:
+        owner_sha256_hex = hashlib.sha256(owner_so.read_bytes()).hexdigest()
+
     # 3. Optional 128B A7TBM001 cold-boot manifest sealing
-    if owner_sha256_hex and install_nonce_hex:
+    if owner_sha256_hex:
+        if not install_nonce_hex:
+            raw_nonce = os.urandom(16)
+            if not any(raw_nonce):
+                raw_nonce = b"\x01" + bytes(15)
+            install_nonce_hex = raw_nonce.hex()
         manifest_bytes = seal_boot_manifest(
             core_out.read_bytes(),
             owner_sha256_hex=owner_sha256_hex,
@@ -288,6 +288,8 @@ def build_all(
             "name": manifest_out.name,
             "bytes": len(manifest_bytes),
             "sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+            "owner_sha256": owner_sha256_hex,
+            "install_nonce": install_nonce_hex,
             "entry_offset": core_meta["export_entries"]["A7R_Touch_Autostart"],  # type: ignore[index]
         }
 
@@ -314,6 +316,12 @@ def main() -> int:
         help="Zig executable path (default: $ZIG or `zig` in PATH)",
     )
     parser.add_argument(
+        "--owner-so",
+        type=Path,
+        default=Path(os.environ["A7R3_TOUCH_OWNER_SO"]) if "A7R3_TOUCH_OWNER_SO" in os.environ else None,
+        help="Optional path to built liba7r_startup_full_v14.so to auto-compute --owner-sha256",
+    )
+    parser.add_argument(
         "--owner-sha256",
         default=os.environ.get("A7R3_TOUCH_OWNER_SHA256"),
         help="Optional 64-hex SHA-256 of the cold-boot autoload owner SO to seal a7r_touch_boot_v1.bin",
@@ -321,7 +329,7 @@ def main() -> int:
     parser.add_argument(
         "--install-nonce",
         default=os.environ.get("A7R3_TOUCH_INSTALL_NONCE"),
-        help="Optional 32-hex installation nonce (16 bytes) to seal a7r_touch_boot_v1.bin",
+        help="Optional 32-hex installation nonce (auto-generated if omitted when sealing manifest)",
     )
     args = parser.parse_args()
     if args.fw_root is None:
@@ -331,6 +339,7 @@ def main() -> int:
         fw_root=args.fw_root,
         out_dir=args.out_dir,
         zig_bin=args.zig,
+        owner_so=args.owner_so,
         owner_sha256_hex=args.owner_sha256,
         install_nonce_hex=args.install_nonce,
     )
