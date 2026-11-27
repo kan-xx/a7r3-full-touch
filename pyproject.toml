@@ -15,5 +15,5 @@ dependencies = []
 unicorn = ["unicorn>=2.0.0"]
 
 [project.urls]
-Homepage = "https://github.com/kan-xx/a7r3-full-touch"
-Repository = "https://github.com/kan-xx/a7r3-full-touch"
+Homepage = "https://github.com/sony-a7r3-research/a7r3-full-touch"
+Repository = "https://github.com/sony-a7r3-research/a7r3-full-touch"

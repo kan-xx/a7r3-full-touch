@@ -1,6 +1,6 @@
 # `a7r3-full-touch` — 索尼 α7R III (FW 3.10) 全界面触控路由与双指缩放系统 (V17)
 
-`a7r3-full-touch` 是面向 **Sony Alpha 7R III (`ILCE-7RM3`, 固件版本 `3.10`)** 的用户态 UI 触控接管与手势合成引擎，支持系统主菜单（`MENU` `0xAA`）、`Fn` 快捷面板（`0x44`）、二级参数滑条与拨轮（`IroiroCon` `0x60`）、原生自定义菜单（[`a7r3-native-ui`](https://github.com/kan-xx/a7r3-native-ui) 中的 `View 0xFFC`），以及回放放大视图（`ViewZoomPb` `0xD3`）下的 JPEG 与 `.ARW` RAW 双指捏合缩放。
+`a7r3-full-touch` 是面向 **Sony Alpha 7R III (`ILCE-7RM3`, 固件版本 `3.10`)** 的用户态 UI 触控接管与手势合成引擎，支持系统主菜单（`MENU` `0xAA`）、`Fn` 快捷面板（`0x44`）、二级参数滑条与拨轮（`IroiroCon` `0x60`）、原生自定义菜单（[`a7r3-native-ui`](https://github.com/sony-a7r3-research/a7r3-native-ui) 中的 `View 0xFFC`），以及回放放大视图（`ViewZoomPb` `0xD3`）下的 JPEG 与 `.ARW` RAW 双指捏合缩放。
 
 > [!IMPORTANT]
 > **净室构建声明**：本仓库仅包含独立编写的 C / C++ 源码、构建脚本与离线验证集，不包含任何原厂共享库（`libObj.so`、`viewUnified*.so`）或固件二进制。外部固件指令仿真通过环境变量 `A7R3_FW_ROOT` 以只读方式引用。
